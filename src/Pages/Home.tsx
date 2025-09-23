@@ -3,29 +3,33 @@ import React, { useEffect, useState } from "react";
 import type { Product } from "../Interfaces";
 
 const Home = () => {
+  const ITEMS_PER_PAGE = 6;
+
   const [products, setProducts] = useState<Product[]>([]);
   const [filtered, setFiltered] = useState<Product[]>([]);
   const [categories, setCategories] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [error, setError] = useState<string | null>(null);
   const [category, setCategory] = useState("all");
   const [sortOrder, setSortOrder] = useState("none");
+  const [currentPage, setCurrentPage] = useState(1);
 
+  // Fetch data once
   useEffect(() => {
     const fetchProducts = async () => {
       try {
-        setLoading(true); // show loader
-        setError(null); // clear previous errors
+        setLoading(true);
+        setError(null);
         const res = await axios.get<Product[]>(
           "https://fakestoreapi.com/products"
         );
 
-        setProducts(res.data); // full source list
-        setFiltered(res.data); // initial visible list
+        setProducts(res.data);
+        setFiltered(res.data);
         const uniqueCats = ["all", ...new Set(res.data.map((p) => p.category))];
-        setCategories(uniqueCats); // options for <select>
+        setCategories(uniqueCats);
       } catch (err) {
-        console.error(err);
+        setError(err instanceof Error ? err.message : "Unknown error");
       } finally {
         setLoading(false);
       }
@@ -39,19 +43,20 @@ const Home = () => {
     const selected = e.target.value;
     setCategory(selected);
 
-    let updated = [...products]; // copy so we don't mutate source
+    let updated =
+      selected === "all"
+        ? [...products]
+        : products.filter((p) => p.category === selected);
 
-    if (selected !== "all")
-      updated = updated.filter((p) => p.category === selected);
-
+    // Apply sorting if active
     if (sortOrder === "asc") updated.sort((a, b) => a.price - b.price);
     else if (sortOrder === "desc") updated.sort((a, b) => b.price - a.price);
 
     setFiltered(updated);
+    setCurrentPage(1); // reset pagination
   };
 
   // Handle price sorting
-
   const handleSortChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const order = e.target.value;
     setSortOrder(order);
@@ -65,7 +70,15 @@ const Home = () => {
     else if (order === "desc") updated.sort((a, b) => b.price - a.price);
 
     setFiltered(updated);
+    setCurrentPage(1); // reset pagination
   };
+
+  // Pagination logic
+  const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE);
+  const paginatedProducts = filtered.slice(
+    (currentPage - 1) * ITEMS_PER_PAGE,
+    currentPage * ITEMS_PER_PAGE
+  );
 
   if (loading) return <p>Loading...</p>;
 
@@ -94,13 +107,41 @@ const Home = () => {
 
       {/* Products Grid */}
       <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-4">
-        {filtered.map((p) => (
+        {paginatedProducts.map((p) => (
           <div key={p.id} className="border rounded p-2">
             <img src={p.image} alt={p.title} className="h-40 mx-auto" />
             <h3 className="text-sm font-semibold mt-2">{p.title}</h3>
             <p className="text-green-700 font-bold">${p.price}</p>
           </div>
         ))}
+      </div>
+
+      {/* Pagination Controls */}
+      <div className="mt-4 flex justify-center gap-2">
+        <button
+          disabled={currentPage === 1}
+          onClick={() => setCurrentPage((p) => p - 1)}
+          className="px-3 py-1 border rounded disabled:opacity-50">
+          Prev
+        </button>
+
+        {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+          <button
+            key={page}
+            onClick={() => setCurrentPage(page)}
+            className={`px-3 py-1 border rounded ${
+              page === currentPage ? "bg-blue-500 text-white" : ""
+            }`}>
+            {page}
+          </button>
+        ))}
+
+        <button
+          disabled={currentPage === totalPages}
+          onClick={() => setCurrentPage((p) => p + 1)}
+          className="px-3 py-1 border rounded disabled:opacity-50">
+          Next
+        </button>
       </div>
     </div>
   );
