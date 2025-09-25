@@ -1,6 +1,7 @@
 import axios from "axios";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import type { Product } from "../Interfaces";
+import { Link } from "react-router-dom";
 
 const Home: React.FC = () => {
   const ITEMS_PER_PAGE = 9;
@@ -15,6 +16,10 @@ const Home: React.FC = () => {
   // filters
   const [category, setCategory] = useState("all");
   const [sortOrder, setSortOrder] = useState("none");
+
+  // infinite-scroll state
+  const [hasMore, setHasMore] = useState(true);
+  const loaderRef = useRef<HTMLDivElement | null>(null);
 
   // Fetch categories once
   useEffect(() => {
@@ -46,18 +51,23 @@ const Home: React.FC = () => {
       }
 
       const res = await axios.get(url);
-      console.log();
 
       let fetched = res.data.products;
 
       // apply sorting client-side (DummyJSON doesn’t support server sort)
       if (sortOrder === "asc") {
-        fetched = [...fetched].sort((a, b) => a.price - b.price);
+        fetched = [...fetched].sort((a: any, b: any) => a.price - b.price);
       } else if (sortOrder === "desc") {
-        fetched = [...fetched].sort((a, b) => b.price - a.price);
+        fetched = [...fetched].sort((a: any, b: any) => b.price - a.price);
       }
 
-      setProducts(fetched);
+      // If page === 1, replace the list Otherwise add to it .
+      setProducts((prev) => {
+        const newArr = page === 1 ? fetched : [...prev, ...fetched];
+        setHasMore(newArr.length < res.data.total);
+        return newArr;
+      });
+
       setTotalProducts(res.data.total);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unknown error");
@@ -71,9 +81,36 @@ const Home: React.FC = () => {
     fetchProducts(currentPage);
   }, [currentPage, category, sortOrder]);
 
+  // Intersection Observer: watch loaderRef and increment page when it becomes visible
+  useEffect(() => {
+    const el = loaderRef.current;
+    if (!el) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const entry = entries[0];
+        if (entry.isIntersecting && !loading && hasMore) {
+          setCurrentPage((p) => p + 1);
+        }
+      },
+      {
+        root: null,
+        rootMargin: "0px", // start loading earlier (pre-fetch)
+        threshold: 0.1,
+      }
+    );
+
+    observer.observe(el);
+
+    return () => {
+      observer.unobserve(el);
+    };
+  }, [loading, hasMore]);
+
   const totalPages = Math.ceil(totalProducts / ITEMS_PER_PAGE);
 
-  if (loading) return <p className="p-4">Loading...</p>;
+  if (loading && products.length === 0)
+    return <p className="p-4">Loading...</p>;
   if (error) return <p className="p-4 text-red-600">{error}</p>;
 
   return (
@@ -85,7 +122,10 @@ const Home: React.FC = () => {
         <select
           value={category}
           onChange={(e) => {
+            // reset list and pagination when changing filters
             setCategory(e.target.value);
+            setProducts([]); // clear existing products so page=1 becomes fresh
+            setHasMore(true); // allow further loading for new category
             setCurrentPage(1);
           }}
           aria-label="Filter by category">
@@ -99,7 +139,10 @@ const Home: React.FC = () => {
         <select
           value={sortOrder}
           onChange={(e) => {
+            // reset list and pagination when changing sort
             setSortOrder(e.target.value);
+            setProducts([]);
+            setHasMore(true);
             setCurrentPage(1);
           }}
           aria-label="Sort by price">
@@ -112,23 +155,33 @@ const Home: React.FC = () => {
       {/* Products Grid */}
       <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-4">
         {products.map((p) => (
-          <div key={p.id} className="border rounded p-2">
-            <img
-              src={p.thumbnail}
-              alt={p.title}
-              className="h-40 mx-auto object-cover"
-            />
-            <h3 className="text-sm font-semibold mt-2">{p.title}</h3>
-            <p className="text-green-700 font-bold">${p.price}</p>
-          </div>
+          <Link to={`/product/${p.id}`} key={p.id}>
+            <div key={p.id} className="border rounded p-2">
+              <img
+                src={p.thumbnail ?? (p as any).images?.[0] ?? ""}
+                alt={p.title}
+                className="h-40 mx-auto object-cover"
+              />
+              <h3 className="text-sm font-semibold mt-2">{p.title}</h3>
+              <p className="text-green-700 font-bold">${p.price}</p>
+            </div>
+          </Link>
         ))}
       </div>
 
-      {/* Pagination Controls */}
+      {/* Loader sentinel (IntersectionObserver watches this) */}
+      <div ref={loaderRef} />
+
+      {/* Loading indicator when fetching more (non-blocking) */}
+      {loading && products.length > 0 && (
+        <p className="text-center mt-2">Loading more...</p>
+      )}
+
+      {/* Optional: keep your pagination controls (they still work) */}
       <div className="mt-4 flex justify-center gap-2 flex-wrap">
         <button
           disabled={currentPage === 1}
-          onClick={() => setCurrentPage((p) => p - 1)}
+          onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
           className="px-3 py-1 border rounded disabled:opacity-50">
           Prev
         </button>
@@ -146,7 +199,7 @@ const Home: React.FC = () => {
 
         <button
           disabled={currentPage === totalPages}
-          onClick={() => setCurrentPage((p) => p + 1)}
+          onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
           className="px-3 py-1 border rounded disabled:opacity-50">
           Next
         </button>
