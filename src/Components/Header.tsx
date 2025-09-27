@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
+import icon from "../assets/Icon.png";
 
 const HeaderDark = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -18,23 +19,23 @@ const HeaderDark = () => {
               <Link
                 to="/"
                 className="hover:text-[#387F1A] text-base font-medium transition-colors duration-200">
-                About Us
+                Home{" "}
               </Link>
               <Link
-                to="/Projects-impact"
+                to="/Products"
                 className="hover:text-[#387F1A] text-base font-medium transition-colors duration-200">
-                Projects & Impacts
+                Products{" "}
               </Link>
               <Link
-                to="/our-story"
+                to="/Products"
                 className="hover:text-[#387F1A] text-base font-medium transition-colors duration-200">
-                Our Story
+                Promos{" "}
               </Link>
             </div>
           </div>
           <div className="flex items-center md:space-x-4">
-            <button className="bg-[#387F1A] text-[#fff] px-6 py-3 rounded-full text-sm font-medium transition-colors duration-200 cursor-pointer hidden md:block">
-              Contact Us →
+            <button className="bg-[#387F1A] text-[#fff] px-6 py-3 rounded-full text-sm font-medium transition-colors duration-200 cursor-pointer hidden md:flex items-center justify-center gap-1">
+              Cart <img src={icon} alt="cart icon" className="w-4 h-3" />
             </button>
             <div className="md:hidden">
               <button
@@ -70,28 +71,28 @@ const HeaderDark = () => {
               : "opacity-0 scale-y-95 invisible"
           }`}>
           <Link
-            to="/about-us"
+            to="/"
             className="block text-gray-700 hover:text-[#387F1A] text-base font-medium"
             onClick={() => setIsMobileMenuOpen(false)}>
-            About Us
+            Home{" "}
           </Link>
           <Link
-            to="/Projects-impact"
+            to="/Products"
             className="block text-gray-700 hover:text-[#387F1A] text-base font-medium"
             onClick={() => setIsMobileMenuOpen(false)}>
-            Projects & Impacts
+            Products{" "}
           </Link>
           <Link
-            to="/our-story"
+            to="/promo"
             className="block text-gray-700 hover:text-[#387F1A] text-base font-medium"
             onClick={() => setIsMobileMenuOpen(false)}>
-            Our Story
+            Promos{" "}
           </Link>
           <Link
             to="/Contact-us"
             className="block hover:bg-[#25610c] text-gray-700 py-2 text-base font-medium"
             onClick={() => setIsMobileMenuOpen(false)}>
-            Contact Us
+            Cart
           </Link>
         </div>
       </div>

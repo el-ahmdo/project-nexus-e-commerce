@@ -7,9 +7,9 @@ export interface Dimensions {
 
 export interface Review {
   rating: number;
-  comment?: string;
+  comment: string;
   date?: string; // ISO date string
-  reviewerName?: string;
+  reviewerName: string;
   reviewerEmail?: string;
 }
 
@@ -22,9 +22,9 @@ export interface Meta {
 }
 
 export interface Product {
-  id: number | string;
+  id: string;
   title: string;
-  description?: string;
+  description: string;
   category?: string;
   price: number;
   discountPercentage?: number;
@@ -43,7 +43,7 @@ export interface Product {
   minimumOrderQuantity?: number;
   meta?: Meta;
   thumbnail?: string;
-  images?: string[];
+  images: string[];
 }
 
 export interface PaginatedProductsResponse {

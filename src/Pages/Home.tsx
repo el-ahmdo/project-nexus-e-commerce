@@ -1,208 +1,110 @@
+import React, { useEffect, useState } from "react";
+import ProductCard from "../Components/ProductCard";
+import banner from "../assets/banner.png";
+import banner2 from "../assets/Banner2.png";
 import axios from "axios";
-import React, { useEffect, useState, useRef } from "react";
 import type { Product } from "../Interfaces";
 import { Link } from "react-router-dom";
 
 const Home: React.FC = () => {
-  const ITEMS_PER_PAGE = 9;
-
   const [products, setProducts] = useState<Product[]>([]);
-  const [categories, setCategories] = useState<string[]>([]);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [totalProducts, setTotalProducts] = useState(0);
+  const [dealProducts, setDealProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
+
   const [error, setError] = useState<string | null>(null);
-
-  // filters
-  const [category, setCategory] = useState("all");
-  const [sortOrder, setSortOrder] = useState("none");
-
-  // infinite-scroll state
-  const [hasMore, setHasMore] = useState(true);
-  const loaderRef = useRef<HTMLDivElement | null>(null);
-
-  // Fetch categories once
   useEffect(() => {
-    const fetchCategories = async () => {
-      try {
-        const res = await axios.get<string[]>(
-          "https://dummyjson.com/products/category-list"
-        );
-        setCategories(["all", ...res.data]);
-      } catch (err) {
-        console.error("Error fetching categories:", err);
-      }
-    };
-    fetchCategories();
-  }, []);
-
-  // Fetch products with pagination, category, and sort
-  const fetchProducts = async (page: number) => {
-    try {
+    const fetchProducts = async () => {
       setLoading(true);
       setError(null);
 
-      const skip = (page - 1) * ITEMS_PER_PAGE;
-      let url = `https://dummyjson.com/products?limit=${ITEMS_PER_PAGE}&skip=${skip}`;
-
-      // if a category is selected, hit the category endpoint
-      if (category !== "all") {
-        url = `https://dummyjson.com/products/category/${category}?limit=${ITEMS_PER_PAGE}&skip=${skip}`;
+      try {
+        const res = await axios.get(
+          "https://dummyjson.com/products?limit=4&skip=50"
+        );
+        setProducts(res.data.products);
+      } catch {
+        setError("Failed to fetch featured products");
       }
 
-      const res = await axios.get(url);
-
-      let fetched = res.data.products;
-
-      // apply sorting client-side (DummyJSON doesn’t support server sort)
-      if (sortOrder === "asc") {
-        fetched = [...fetched].sort((a: any, b: any) => a.price - b.price);
-      } else if (sortOrder === "desc") {
-        fetched = [...fetched].sort((a: any, b: any) => b.price - a.price);
+      try {
+        const res2 = await axios.get("https://dummyjson.com/products");
+        const cheapest = res2.data.products
+          .sort((a: any, b: any) => a.price - b.price)
+          .slice(0, 4);
+        setDealProducts(cheapest);
+      } catch {
+        setError("Failed to fetch deal products");
       }
 
-      // If page === 1, replace the list Otherwise add to it .
-      setProducts((prev) => {
-        const newArr = page === 1 ? fetched : [...prev, ...fetched];
-        setHasMore(newArr.length < res.data.total);
-        return newArr;
-      });
-
-      setTotalProducts(res.data.total);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Unknown error");
-    } finally {
       setLoading(false);
-    }
-  };
-
-  // refetch when page, category, or sort changes
-  useEffect(() => {
-    fetchProducts(currentPage);
-  }, [currentPage, category, sortOrder]);
-
-  // Intersection Observer: watch loaderRef and increment page when it becomes visible
-  useEffect(() => {
-    const el = loaderRef.current;
-    if (!el) return;
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        const entry = entries[0];
-        if (entry.isIntersecting && !loading && hasMore) {
-          setCurrentPage((p) => p + 1);
-        }
-      },
-      {
-        root: null,
-        rootMargin: "0px", // start loading earlier (pre-fetch)
-        threshold: 0.1,
-      }
-    );
-
-    observer.observe(el);
-
-    return () => {
-      observer.unobserve(el);
     };
-  }, [loading, hasMore]);
 
-  const totalPages = Math.ceil(totalProducts / ITEMS_PER_PAGE);
-
-  if (loading && products.length === 0)
-    return <p className="p-4">Loading...</p>;
-  if (error) return <p className="p-4 text-red-600">{error}</p>;
+    fetchProducts();
+  }, []);
 
   return (
-    <div className="p-4">
-      <h2 className="text-xl font-bold mb-4">Products</h2>
-
-      {/* Filters */}
-      <div className="flex gap-4 mb-4">
-        <select
-          value={category}
-          onChange={(e) => {
-            // reset list and pagination when changing filters
-            setCategory(e.target.value);
-            setProducts([]); // clear existing products so page=1 becomes fresh
-            setHasMore(true); // allow further loading for new category
-            setCurrentPage(1);
-          }}
-          aria-label="Filter by category">
-          {categories.map((cat) => (
-            <option key={cat} value={cat}>
-              {cat.charAt(0).toUpperCase() + cat.slice(1)}
-            </option>
-          ))}
-        </select>
-
-        <select
-          value={sortOrder}
-          onChange={(e) => {
-            // reset list and pagination when changing sort
-            setSortOrder(e.target.value);
-            setProducts([]);
-            setHasMore(true);
-            setCurrentPage(1);
-          }}
-          aria-label="Sort by price">
-          <option value="none">Sort By Price</option>
-          <option value="asc">Low → High</option>
-          <option value="desc">High → Low</option>
-        </select>
+    <div className=" flex flex-col w-full gap-10 ">
+      {/* baner1 */}
+      <div>
+        <img
+          src={banner}
+          alt="Banner"
+          className="w-full h-auto object-cover "
+        />
       </div>
 
-      {/* Products Grid */}
-      <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-4">
-        {products.map((p) => (
-          <Link to={`/product/${p.id}`} key={p.id}>
-            <div key={p.id} className="border rounded p-2">
-              <img
-                src={p.thumbnail ?? (p as any).images?.[0] ?? ""}
-                alt={p.title}
-                className="h-40 mx-auto object-cover"
+      {/* latest products  */}
+      <div className="flex flex-col">
+        <p className="md:text-[60px] text-[30px] font-bold text-center">
+          {" "}
+          Latest Products{" "}
+        </p>
+
+        {error && (
+          <p className="text-red-500 font-semibold text-center mt-4">{error}</p>
+        )}
+        {loading && !error && (
+          <p className="text-gray-500 text-center mt-4">Loading products...</p>
+        )}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 w-full">
+          {products.map((p) => (
+            <Link to={`/product/${p.id}`} key={p.id}>
+              <ProductCard
+                key={p.id}
+                title={p.title}
+                price={p.price}
+                description={p.description}
+                image={p.images?.[0]}
               />
-              <h3 className="text-sm font-semibold mt-2">{p.title}</h3>
-              <p className="text-green-700 font-bold">${p.price}</p>
-            </div>
-          </Link>
-        ))}
+            </Link>
+          ))}
+        </div>
+        {/* Categories  */}
+
+        <p className="text-[60px] font-bold text-center"> Deals Of The Day </p>
+        <div className="grid grid-cols-1 md:grid-cols-4  gap-4 w-full">
+          {dealProducts.map((p) => (
+            <Link to={`/product/${p.id}`} key={p.id}>
+              <ProductCard
+                key={p.id}
+                title={p.title}
+                price={p.price}
+                description={p.description}
+                image={p.images?.[0]}
+              />
+            </Link>
+          ))}
+        </div>
       </div>
-
-      {/* Loader sentinel (IntersectionObserver watches this) */}
-      <div ref={loaderRef} />
-
-      {/* Loading indicator when fetching more (non-blocking) */}
-      {loading && products.length > 0 && (
-        <p className="text-center mt-2">Loading more...</p>
-      )}
-
-      {/* Optional: keep your pagination controls (they still work) */}
-      <div className="mt-4 flex justify-center gap-2 flex-wrap">
-        <button
-          disabled={currentPage === 1}
-          onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-          className="px-3 py-1 border rounded disabled:opacity-50">
-          Prev
-        </button>
-
-        {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
-          <button
-            key={page}
-            onClick={() => setCurrentPage(page)}
-            className={`px-3 py-1 border rounded ${
-              page === currentPage ? "bg-blue-500 text-white" : ""
-            }`}>
-            {page}
-          </button>
-        ))}
-
-        <button
-          disabled={currentPage === totalPages}
-          onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-          className="px-3 py-1 border rounded disabled:opacity-50">
-          Next
-        </button>
+      {/* banner2 */}
+      <div>
+        <div>
+          <img
+            src={banner2}
+            alt="Banner"
+            className="w-full h-auto object-cover "
+          />
+        </div>
       </div>
     </div>
   );
